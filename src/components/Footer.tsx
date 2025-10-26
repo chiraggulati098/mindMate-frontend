@@ -1,4 +1,3 @@
-import { Brain } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Mail,
@@ -73,7 +72,7 @@ export const Footer = () => {
           {/* Brand section */}
           <div className="flex flex-col space-y-4">
             <div className="flex items-center space-x-2">
-              <Brain className="text-[#3ca2fa] h-8 w-8" />
+              <img src="/logo.png" alt="MindMate" className="h-8 w-8" />
               <span className="text-white text-3xl font-bold">MindMate</span>
             </div>
             <p className="text-sm leading-relaxed">

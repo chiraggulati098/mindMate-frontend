@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Brain } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +26,7 @@ const Auth = () => {
         <CardHeader className="text-center space-y-4">
           <Link to="/" className="flex items-center justify-center gap-2 group">
             <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-              <Brain className="h-8 w-8 text-primary" />
+              <img src="/logo.png" alt="MindMate" className="h-8 w-8" />
             </div>
             <span className="text-2xl font-bold">MindMate</span>
           </Link>

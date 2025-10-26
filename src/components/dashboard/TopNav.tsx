@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Brain, User, Settings, LogOut, Moon, Sun } from "lucide-react";
+import { User, Settings, LogOut, Moon, Sun } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
@@ -30,7 +30,7 @@ const TopNav = () => {
   return (
     <header className="h-16 border-b bg-card flex items-center justify-between px-6">
       <div className="flex items-center gap-3">
-        <Brain className="w-8 h-8 text-primary" />
+        <img src="/logo.png" alt="MindMate" className="w-8 h-8" />
         <span className="text-xl font-bold">MindMate</span>
       </div>
 
