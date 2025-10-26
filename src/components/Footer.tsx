@@ -1,35 +1,168 @@
 import { Brain } from "lucide-react";
 import { Link } from "react-router-dom";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Facebook,
+  Instagram,
+  Twitter,
+  Dribbble,
+  Globe,
+} from "lucide-react";
+import { FooterBackgroundGradient } from "@/components/ui/hover-footer";
+import { TextHoverEffect } from "@/components/ui/hover-footer";
 
 export const Footer = () => {
+  // Footer link data
+  const footerLinks = [
+    {
+      title: "About Us",
+      links: [
+        { label: "Company History", href: "#" },
+        { label: "Meet the Team", href: "#" },
+        { label: "Employee Handbook", href: "#" },
+        { label: "Careers", href: "#" },
+      ],
+    },
+    {
+      title: "Helpful Links",
+      links: [
+        { label: "FAQs", href: "#" },
+        { label: "Support", href: "#" },
+        {
+          label: "Live Chat",
+          href: "#",
+          pulse: true,
+        },
+      ],
+    },
+  ];
+
+  // Contact info data
+  const contactInfo = [
+    {
+      icon: <Mail size={18} className="text-[#3ca2fa]" />,
+      text: "hello@mindmate.com",
+      href: "mailto:hello@mindmate.com",
+    },
+    {
+      icon: <Phone size={18} className="text-[#3ca2fa]" />,
+      text: "+1 123 456 7890",
+      href: "tel:+11234567890",
+    },
+    {
+      icon: <MapPin size={18} className="text-[#3ca2fa]" />,
+      text: "San Francisco, CA",
+    },
+  ];
+
+  // Social media icons
+  const socialLinks = [
+    { icon: <Facebook size={20} />, label: "Facebook", href: "#" },
+    { icon: <Instagram size={20} />, label: "Instagram", href: "#" },
+    { icon: <Twitter size={20} />, label: "Twitter", href: "#" },
+    { icon: <Dribbble size={20} />, label: "Dribbble", href: "#" },
+    { icon: <Globe size={20} />, label: "Globe", href: "#" },
+  ];
+
   return (
-    <footer className="bg-card border-t border-border py-12">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Brain className="h-5 w-5 text-primary" />
+    <footer className="bg-[#0F0F11]/10 relative h-fit rounded-3xl overflow-hidden m-8">
+      <div className="max-w-7xl mx-auto p-14 z-40 relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 md:gap-8 lg:gap-16 pb-12">
+          {/* Brand section */}
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center space-x-2">
+              <Brain className="text-[#3ca2fa] h-8 w-8" />
+              <span className="text-white text-3xl font-bold">MindMate</span>
             </div>
-            <span className="font-bold">MindMate</span>
+            <p className="text-sm leading-relaxed">
+              MindMate is an AI-powered productivity tool for mind mapping and collaboration.
+            </p>
           </div>
 
-          <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
-            <Link to="#" className="hover:text-primary transition-colors">
-              Terms
-            </Link>
-            <Link to="#" className="hover:text-primary transition-colors">
-              Privacy
-            </Link>
-            <Link to="#" className="hover:text-primary transition-colors">
-              Contact
-            </Link>
-          </div>
+          {/* Footer link sections */}
+          {footerLinks.map((section) => (
+            <div key={section.title}>
+              <h4 className="text-white text-lg font-semibold mb-6">
+                {section.title}
+              </h4>
+              <ul className="space-y-3">
+                {section.links.map((link) => (
+                  <li key={link.label} className="relative">
+                    <a
+                      href={link.href}
+                      className="hover:text-[#3ca2fa] transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                    {link.pulse && (
+                      <span className="absolute top-0 right-[-10px] w-2 h-2 rounded-full bg-[#3ca2fa] animate-pulse"></span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
-          <div className="text-sm text-muted-foreground">
-            © 2025 MindMate. All rights reserved.
+          {/* Contact section */}
+          <div>
+            <h4 className="text-white text-lg font-semibold mb-6">
+              Contact Us
+            </h4>
+            <ul className="space-y-4">
+              {contactInfo.map((item, i) => (
+                <li key={i} className="flex items-center space-x-3">
+                  {item.icon}
+                  {item.href ? (
+                    <a
+                      href={item.href}
+                      className="hover:text-[#3ca2fa] transition-colors"
+                    >
+                      {item.text}
+                    </a>
+                  ) : (
+                    <span className="hover:text-[#3ca2fa] transition-colors">
+                      {item.text}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
+
+        <hr className="border-t border-gray-700 my-8" />
+
+        {/* Footer bottom */}
+        <div className="flex flex-col md:flex-row justify-between items-center text-sm space-y-4 md:space-y-0">
+          {/* Social icons */}
+          <div className="flex space-x-6 text-gray-400">
+            {socialLinks.map(({ icon, label, href }) => (
+              <a
+                key={label}
+                href={href}
+                aria-label={label}
+                className="hover:text-[#3ca2fa] transition-colors"
+              >
+                {icon}
+              </a>
+            ))}
+          </div>
+
+          {/* Copyright */}
+          <p className="text-center md:text-left">
+            &copy; {new Date().getFullYear()} MindMate. All rights reserved.
+          </p>
+        </div>
       </div>
+
+      {/* Text hover effect */}
+      <div className="lg:flex hidden h-[30rem] -mt-52 -mb-36">
+        <TextHoverEffect text="MindMate" className="z-50" />
+      </div>
+
+      <FooterBackgroundGradient />
     </footer>
   );
 };
