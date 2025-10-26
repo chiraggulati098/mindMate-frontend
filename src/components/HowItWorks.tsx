@@ -45,7 +45,7 @@ export const HowItWorks = () => {
             >
               {/* Connection line */}
               {index < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-primary to-transparent -z-10" />
+                <div className="hidden lg:block absolute top-10 left-1/2 w-[calc((100%-6rem)/4 + 2rem)] h-0.5 bg-gradient-to-r from-primary to-transparent -z-10" />
               )}
               
               <div className="text-center space-y-4">
