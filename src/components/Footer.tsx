@@ -32,7 +32,6 @@ export const Footer = () => {
         {
           label: "Live Chat",
           href: "#",
-          pulse: true,
         },
       ],
     },
@@ -46,13 +45,8 @@ export const Footer = () => {
       href: "mailto:hello@mindmate.com",
     },
     {
-      icon: <Phone size={18} className="text-[#3ca2fa]" />,
-      text: "+1 123 456 7890",
-      href: "tel:+11234567890",
-    },
-    {
       icon: <MapPin size={18} className="text-[#3ca2fa]" />,
-      text: "San Francisco, CA",
+      text: "India",
     },
   ];
 
@@ -66,16 +60,16 @@ export const Footer = () => {
   ];
 
   return (
-    <footer className="bg-[#0F0F11]/10 relative h-fit rounded-3xl overflow-hidden m-8">
+    <footer className="bg-gray-100 dark:bg-[#0F0F11]/10 relative h-fit rounded-3xl overflow-hidden m-8">
       <div className="max-w-7xl mx-auto p-14 z-40 relative">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 md:gap-8 lg:gap-16 pb-12">
           {/* Brand section */}
           <div className="flex flex-col space-y-4">
             <div className="flex items-center space-x-2">
               <img src="/logo.png" alt="MindMate" className="h-8 w-8" />
-              <span className="text-white text-3xl font-bold">MindMate</span>
+              <span className="text-gray-900 dark:text-white text-3xl font-bold">MindMate</span>
             </div>
-            <p className="text-sm leading-relaxed">
+            <p className="text-gray-700 dark:text-white text-sm leading-relaxed">
               MindMate is an AI-powered productivity tool for mind mapping and collaboration.
             </p>
           </div>
@@ -83,7 +77,7 @@ export const Footer = () => {
           {/* Footer link sections */}
           {footerLinks.map((section) => (
             <div key={section.title}>
-              <h4 className="text-white text-lg font-semibold mb-6">
+              <h4 className="text-gray-900 dark:text-white text-lg font-semibold mb-6">
                 {section.title}
               </h4>
               <ul className="space-y-3">
@@ -95,9 +89,6 @@ export const Footer = () => {
                     >
                       {link.label}
                     </a>
-                    {link.pulse && (
-                      <span className="absolute top-0 right-[-10px] w-2 h-2 rounded-full bg-[#3ca2fa] animate-pulse"></span>
-                    )}
                   </li>
                 ))}
               </ul>
@@ -106,7 +97,7 @@ export const Footer = () => {
 
           {/* Contact section */}
           <div>
-            <h4 className="text-white text-lg font-semibold mb-6">
+            <h4 className="text-gray-900 dark:text-white text-lg font-semibold mb-6">
               Contact Us
             </h4>
             <ul className="space-y-4">
@@ -131,12 +122,12 @@ export const Footer = () => {
           </div>
         </div>
 
-        <hr className="border-t border-gray-700 my-8" />
+        <hr className="border-t border-gray-300 dark:border-gray-700 my-8" />
 
         {/* Footer bottom */}
         <div className="flex flex-col md:flex-row justify-between items-center text-sm space-y-4 md:space-y-0">
           {/* Social icons */}
-          <div className="flex space-x-6 text-gray-400">
+          <div className="flex space-x-6 text-gray-600 dark:text-gray-400">
             {socialLinks.map(({ icon, label, href }) => (
               <a
                 key={label}
@@ -150,7 +141,7 @@ export const Footer = () => {
           </div>
 
           {/* Copyright */}
-          <p className="text-center md:text-left">
+          <p className="text-gray-700 dark:text-white text-center md:text-left">
             &copy; {new Date().getFullYear()} MindMate. All rights reserved.
           </p>
         </div>

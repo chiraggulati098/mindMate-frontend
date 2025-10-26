@@ -134,12 +134,25 @@ export const TextHoverEffect = ({
 
 
 export const FooterBackgroundGradient = () => {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const checkTheme = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
       className="absolute inset-0 z-0"
       style={{
-        background:
-          "radial-gradient(125% 125% at 50% 10%, #0F0F1166 50%, #3ca2fa33 100%)",
+        background: isDark
+          ? "radial-gradient(125% 125% at 50% 10%, #0F0F1166 50%, #3ca2fa33 100%)"
+          : "radial-gradient(125% 125% at 50% 10%, #f3f4f666 50%, #3ca2fa33 100%)",
       }}
     />
   );
