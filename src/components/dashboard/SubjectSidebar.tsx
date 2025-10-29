@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronDown, ChevronRight, Plus, FileText, ChevronLeft, PanelLeftClose, PanelLeft } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, ChevronRight, Plus, FileText, ChevronLeft, PanelLeftClose, PanelLeft, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getSubjects, createSubject, deleteSubject } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface Document {
   id: string;
@@ -38,45 +40,33 @@ interface SubjectSidebarProps {
 }
 
 const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
-  const [subjects, setSubjects] = useState<Subject[]>([
-    {
-      id: "1",
-      name: "Computer Science",
-      expanded: true,
-      documents: [
-        { id: "1-1", name: "Algorithms" },
-        { id: "1-2", name: "Data Structures" },
-        { id: "1-3", name: "Operating Systems" },
-      ],
-    },
-    {
-      id: "2",
-      name: "Mathematics",
-      expanded: false,
-      documents: [
-        { id: "2-1", name: "Calculus" },
-        { id: "2-2", name: "Linear Algebra" },
-      ],
-    },
-    {
-      id: "3",
-      name: "Physics",
-      expanded: false,
-      documents: [
-        { id: "3-1", name: "Mechanics" },
-        { id: "3-2", name: "Thermodynamics" },
-        { id: "3-3", name: "Quantum Physics" },
-      ],
-    },
-  ]);
-
-  const [selectedDoc, setSelectedDoc] = useState("1-2");
+  const { toast } = useToast();
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDoc, setSelectedDoc] = useState("");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [subjectDialogOpen, setSubjectDialogOpen] = useState(false);
   const [documentDialogOpen, setDocumentDialogOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState("");
   const [documentType, setDocumentType] = useState("");
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const data = await getSubjects();
+        console.log('Fetched subjects:', data);
+        const subjectsWithDocs = data.map(s => ({ ...s, documents: [] as Document[], expanded: false }));
+        setSubjects(subjectsWithDocs);
+      } catch (error: any) {
+        console.error('Fetch subjects error:', error);
+        toast({ title: "Error", description: error.message });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   const toggleSubject = (id: string) => {
     setSubjects((prev) =>
@@ -86,17 +76,32 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
     );
   };
 
-  const handleAddSubject = () => {
+  const handleAddSubject = async () => {
     if (newSubjectName.trim()) {
-      const newSubject: Subject = {
-        id: String(subjects.length + 1),
-        name: newSubjectName,
-        expanded: false,
-        documents: [],
-      };
-      setSubjects([...subjects, newSubject]);
-      setNewSubjectName("");
-      setSubjectDialogOpen(false);
+      try {
+        const newSubject = await createSubject(newSubjectName);
+        setSubjects(prev => [...prev, { ...newSubject, documents: [], expanded: false }]);
+        setNewSubjectName("");
+        setSubjectDialogOpen(false);
+      } catch (error: any) {
+        toast({ title: "Error", description: error.message });
+      }
+    }
+  };
+
+  const handleDeleteSubject = async (id: string) => {
+    console.log('Attempting to delete subject with ID:', id);
+    if (!id || id === 'undefined') {
+      toast({ title: "Error", description: "Invalid subject ID" });
+      return;
+    }
+    try {
+      await deleteSubject(id);
+      setSubjects(prev => prev.filter(s => s.id !== id));
+      toast({ title: "Success", description: "Subject deleted successfully" });
+    } catch (error: any) {
+      console.error('Delete subject error:', error);
+      toast({ title: "Error", description: error.message });
     }
   };
 
@@ -167,7 +172,10 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
 
       <ScrollArea className="flex-1">
         <div className="p-2">
-          {subjects.map((subject) => (
+          {loading ? (
+            <div className="text-center py-4">Loading subjects...</div>
+          ) : (
+            subjects.map((subject) => (
             <div key={subject.id} className="mb-2">
               <div className="flex items-center gap-1">
                 <Button
@@ -182,6 +190,15 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
                   )}
                   {!isCollapsed && subject.name}
                 </Button>
+                {!isCollapsed && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDeleteSubject(subject.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
                 {!isCollapsed && (
                   <Dialog open={documentDialogOpen && selectedSubjectId === subject.id} onOpenChange={(open) => {
                     setDocumentDialogOpen(open);
@@ -253,7 +270,8 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
                 </div>
               )}
             </div>
-          ))}
+          ))
+        )}
         </div>
       </ScrollArea>
     </aside>

@@ -64,7 +64,7 @@ const Auth = () => {
                   // Signup
                   const resp = await signup({ name, email, password });
                   if (resp.token) {
-                    localStorage.setItem("auth_token", resp.token);
+                    localStorage.setItem("token", resp.token);
                     navigate("/dashboard");
                   } else {
                     setError(resp.message || "Signup succeeded but no token returned");
@@ -77,7 +77,7 @@ const Auth = () => {
                   } else {
                     const resp = await login({ email, password });
                     if (resp.token) {
-                      localStorage.setItem("auth_token", resp.token);
+                      localStorage.setItem("token", resp.token);
                       navigate("/dashboard");
                     } else {
                       setError(resp.message || "Login succeeded but no token returned");
