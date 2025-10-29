@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Play, Loader2, FileText, Upload, Link, ExternalLink } from "lucide-react";
+import { Search, Play, Loader2, FileText, Upload, Link, ExternalLink, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,10 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
+  const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string>>({});
+  const [mcqSubmitted, setMcqSubmitted] = useState<Record<number, boolean>>({});
   const { toast } = useToast();
 
   // Add polling for processing status updates
@@ -114,6 +119,10 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         setPdfFile(null);
         setImageFiles([]);
         setIsEditing(false);
+        setCurrentFlashcardIndex(0);
+        setIsFlashcardFlipped(false);
+        setMcqAnswers({});
+        setMcqSubmitted({});
       }
     };
 
@@ -892,17 +901,82 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         }
         
         if (flashcardStatus === ProcessingStatus.COMPLETED) {
+          const flashcards = documentData?.flashcards || [];
+          
+          if (!flashcards || flashcards.length === 0) {
+            return (
+              <div className="text-center text-muted-foreground py-8">
+                <p>Flashcard content is not available. Please try processing again.</p>
+              </div>
+            );
+          }
+          
+          const currentCard = flashcards[currentFlashcardIndex];
+          
           return (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold mb-6">Flashcards</h2>
-              <div className="space-y-4">
-                {documentData?.flashcard ? (
-                  <div className="whitespace-pre-wrap p-6 rounded-lg bg-muted">{documentData.flashcard}</div>
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    <p>Flashcard content is not available. Please try processing again.</p>
-                  </div>
-                )}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold">Flashcards</h2>
+                <div className="text-sm text-muted-foreground">
+                  {currentFlashcardIndex + 1} of {flashcards.length}
+                </div>
+              </div>
+              
+              <div className="flex justify-center">
+                <Card 
+                  className="w-full max-w-2xl h-80 cursor-pointer transition-all duration-300 hover:shadow-lg"
+                  onClick={() => setIsFlashcardFlipped(!isFlashcardFlipped)}
+                >
+                  <CardContent className="h-full flex items-center justify-center p-8">
+                    <div className="text-center space-y-4">
+                      <div className="text-lg font-medium text-muted-foreground">
+                        {isFlashcardFlipped ? "Answer" : "Question"}
+                      </div>
+                      <div className="text-xl leading-relaxed">
+                        {isFlashcardFlipped ? currentCard.back : currentCard.front}
+                      </div>
+                      <div className="text-sm text-muted-foreground pt-4">
+                        Click to {isFlashcardFlipped ? "see question" : "reveal answer"}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setCurrentFlashcardIndex(Math.max(0, currentFlashcardIndex - 1));
+                    setIsFlashcardFlipped(false);
+                  }}
+                  disabled={currentFlashcardIndex === 0}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Previous
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setIsFlashcardFlipped(false);
+                  }}
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Reset Card
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    setCurrentFlashcardIndex(Math.min(flashcards.length - 1, currentFlashcardIndex + 1));
+                    setIsFlashcardFlipped(false);
+                  }}
+                  disabled={currentFlashcardIndex === flashcards.length - 1}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
               </div>
             </div>
           );
@@ -992,17 +1066,108 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         }
         
         if (mcqStatus === ProcessingStatus.COMPLETED) {
+          const mcqs = documentData?.mcqs || [];
+          
+          if (!mcqs || mcqs.length === 0) {
+            return (
+              <div className="text-center text-muted-foreground py-8">
+                <p>MCQ content is not available. Please try processing again.</p>
+              </div>
+            );
+          }
+          
+          const handleMcqAnswer = (questionIndex: number, answer: string) => {
+            setMcqAnswers(prev => ({ ...prev, [questionIndex]: answer }));
+          };
+          
+          const handleMcqSubmit = (questionIndex: number) => {
+            setMcqSubmitted(prev => ({ ...prev, [questionIndex]: true }));
+          };
+          
+          const getOptionStyle = (questionIndex: number, optionKey: string, mcq: any) => {
+            const isSubmitted = mcqSubmitted[questionIndex];
+            const selectedAnswer = mcqAnswers[questionIndex];
+            const correctAnswer = mcq.correct_answer;
+            
+            if (!isSubmitted) {
+              return selectedAnswer === optionKey 
+                ? "bg-blue-100 dark:bg-blue-900/30 border-blue-500 text-blue-900 dark:text-blue-100" 
+                : "hover:bg-muted/50 hover:border-muted-foreground/20";
+            }
+            
+            if (optionKey === correctAnswer) {
+              return "bg-green-100 dark:bg-green-900/30 border-green-500 text-green-900 dark:text-green-100";
+            }
+            
+            if (optionKey === selectedAnswer && optionKey !== correctAnswer) {
+              return "bg-red-100 dark:bg-red-900/30 border-red-500 text-red-900 dark:text-red-100";
+            }
+            
+            return "opacity-60";
+          };
+          
           return (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-bold mb-6">Multiple Choice Questions</h2>
-              <div className="space-y-4">
-                {documentData?.mcq ? (
-                  <div className="whitespace-pre-wrap p-6 rounded-lg bg-muted">{documentData.mcq}</div>
-                ) : (
-                  <div className="text-center text-muted-foreground py-8">
-                    <p>MCQ content is not available. Please try processing again.</p>
-                  </div>
-                )}
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold">Multiple Choice Questions</h2>
+              
+              <div className="space-y-6">
+                {mcqs.map((mcq: any, questionIndex: number) => {
+                  const isSubmitted = mcqSubmitted[questionIndex];
+                  const selectedAnswer = mcqAnswers[questionIndex];
+                  const correctAnswer = mcq.correct_answer;
+                  
+                  return (
+                    <Card key={questionIndex} className="w-full">
+                      <CardHeader>
+                        <CardTitle className="text-lg">
+                          Question {questionIndex + 1}
+                        </CardTitle>
+                        <CardDescription className="text-base font-medium text-foreground">
+                          {mcq.question}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {Object.entries(mcq.options).map(([optionKey, optionValue]: [string, any]) => (
+                          <div
+                            key={optionKey}
+                            className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                              getOptionStyle(questionIndex, optionKey, mcq)
+                            }`}
+                            onClick={() => !isSubmitted && handleMcqAnswer(questionIndex, optionKey)}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <span className="font-semibold text-sm">{optionKey}.</span>
+                              <span>{optionValue}</span>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        <div className="flex items-center justify-between pt-4">
+                          {!isSubmitted ? (
+                            <Button
+                              onClick={() => handleMcqSubmit(questionIndex)}
+                              disabled={!selectedAnswer}
+                            >
+                              Submit Answer
+                            </Button>
+                          ) : (
+                            <div className="flex items-center space-x-4">
+                              {selectedAnswer === correctAnswer ? (
+                                <div className="text-green-600 font-medium">
+                                  ✓ Correct! Well done.
+                                </div>
+                              ) : (
+                                <div className="text-red-600 font-medium">
+                                  ✗ Incorrect. The correct answer is {correctAnswer}.
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           );

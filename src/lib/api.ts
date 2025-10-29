@@ -136,6 +136,24 @@ export enum ProcessingStatus {
 }
 
 // Document API functions
+export type Flashcard = {
+  front: string;
+  back: string;
+};
+
+export type MCQOption = {
+  A: string;
+  B: string;
+  C: string;
+  D: string;
+};
+
+export type MCQ = {
+  question: string;
+  options: MCQOption;
+  correct_answer: string;
+};
+
 export type Document = {
   _id: string;
   title: string;
@@ -154,8 +172,10 @@ export type Document = {
   mcq_status?: ProcessingStatus;
   // Content fields
   summary?: string;
-  flashcard?: string;
-  mcq?: string;
+  flashcard?: string; // Keep for backward compatibility
+  mcq?: string; // Keep for backward compatibility
+  flashcards?: Flashcard[]; // New array format
+  mcqs?: MCQ[]; // New array format
 };
 
 export async function createDocument(payload: {
