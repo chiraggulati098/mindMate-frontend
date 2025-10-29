@@ -27,8 +27,8 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
-  const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+  const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState<Record<string, number>>({});
+  const [isFlashcardFlipped, setIsFlashcardFlipped] = useState<Record<string, boolean>>({});
   const [mcqAnswers, setMcqAnswers] = useState<Record<string, Record<number, string>>>({});
   const [mcqSubmitted, setMcqSubmitted] = useState<Record<string, Record<number, boolean>>>({});
   const { toast } = useToast();
@@ -64,6 +64,8 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
     // Clear interval after 10 minutes to prevent indefinite polling
     setTimeout(() => clearInterval(interval), 600000);
   };
+
+
 
   // Fetch document data when a document is selected
   useEffect(() => {
@@ -119,9 +121,7 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         setPdfFile(null);
         setImageFiles([]);
         setIsEditing(false);
-        setCurrentFlashcardIndex(0);
-        setIsFlashcardFlipped(false);
-        // Keep MCQ state as it's now document-specific
+        // Keep flashcard and MCQ state as they're now document-specific
       }
     };
 
@@ -910,32 +910,41 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
             );
           }
           
-          const currentCard = flashcards[currentFlashcardIndex];
+          const docFlashcardIndex = selectedDocumentId ? (currentFlashcardIndex[selectedDocumentId] ?? 0) : 0;
+          const docIsFlipped = selectedDocumentId ? (isFlashcardFlipped[selectedDocumentId] ?? false) : false;
+          const currentCard = flashcards[docFlashcardIndex];
           
           return (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Flashcards</h2>
                 <div className="text-sm text-muted-foreground">
-                  {currentFlashcardIndex + 1} of {flashcards.length}
+                  {docFlashcardIndex + 1} of {flashcards.length}
                 </div>
               </div>
               
               <div className="flex justify-center">
                 <Card 
                   className="w-full max-w-2xl h-80 cursor-pointer transition-all duration-300 hover:shadow-lg"
-                  onClick={() => setIsFlashcardFlipped(!isFlashcardFlipped)}
+                  onClick={() => {
+                    if (selectedDocumentId) {
+                      setIsFlashcardFlipped(prev => ({
+                        ...prev,
+                        [selectedDocumentId]: !docIsFlipped
+                      }));
+                    }
+                  }}
                 >
                   <CardContent className="h-full flex items-center justify-center p-8">
                     <div className="text-center space-y-4">
                       <div className="text-lg font-medium text-muted-foreground">
-                        {isFlashcardFlipped ? "Answer" : "Question"}
+                        {docIsFlipped ? "Answer" : "Question"}
                       </div>
                       <div className="text-xl leading-relaxed">
-                        {isFlashcardFlipped ? currentCard.back : currentCard.front}
+                        {docIsFlipped ? currentCard.back : currentCard.front}
                       </div>
                       <div className="text-sm text-muted-foreground pt-4">
-                        Click to {isFlashcardFlipped ? "see question" : "reveal answer"}
+                        Click to {docIsFlipped ? "see question" : "reveal answer"}
                       </div>
                     </div>
                   </CardContent>
@@ -946,10 +955,19 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
                 <Button 
                   variant="outline"
                   onClick={() => {
-                    setCurrentFlashcardIndex(Math.max(0, currentFlashcardIndex - 1));
-                    setIsFlashcardFlipped(false);
+                    if (selectedDocumentId) {
+                      const newIndex = Math.max(0, docFlashcardIndex - 1);
+                      setCurrentFlashcardIndex(prev => ({
+                        ...prev,
+                        [selectedDocumentId]: newIndex
+                      }));
+                      setIsFlashcardFlipped(prev => ({
+                        ...prev,
+                        [selectedDocumentId]: false
+                      }));
+                    }
                   }}
-                  disabled={currentFlashcardIndex === 0}
+                  disabled={docFlashcardIndex === 0}
                 >
                   <ChevronLeft className="w-4 h-4 mr-2" />
                   Previous
@@ -958,7 +976,12 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
                 <Button 
                   variant="outline"
                   onClick={() => {
-                    setIsFlashcardFlipped(false);
+                    if (selectedDocumentId) {
+                      setIsFlashcardFlipped(prev => ({
+                        ...prev,
+                        [selectedDocumentId]: false
+                      }));
+                    }
                   }}
                 >
                   <RotateCcw className="w-4 h-4 mr-2" />
@@ -968,10 +991,19 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
                 <Button 
                   variant="outline"
                   onClick={() => {
-                    setCurrentFlashcardIndex(Math.min(flashcards.length - 1, currentFlashcardIndex + 1));
-                    setIsFlashcardFlipped(false);
+                    if (selectedDocumentId) {
+                      const newIndex = Math.min(flashcards.length - 1, docFlashcardIndex + 1);
+                      setCurrentFlashcardIndex(prev => ({
+                        ...prev,
+                        [selectedDocumentId]: newIndex
+                      }));
+                      setIsFlashcardFlipped(prev => ({
+                        ...prev,
+                        [selectedDocumentId]: false
+                      }));
+                    }
                   }}
-                  disabled={currentFlashcardIndex === flashcards.length - 1}
+                  disabled={docFlashcardIndex === flashcards.length - 1}
                 >
                   Next
                   <ChevronRight className="w-4 h-4 ml-2" />
