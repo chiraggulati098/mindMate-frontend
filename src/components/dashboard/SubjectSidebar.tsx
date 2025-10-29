@@ -521,8 +521,25 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
                         className="flex-1 justify-start text-sm"
                         onClick={() => {
                           setSelectedDoc(doc.id);
-                          // Use actual document type instead of name matching to avoid bugs
-                          const docType = doc.type === 'pdf' ? "PDFs" : "Notes";
+                          // Map document type based on the actual document name/type for better UX
+                          let docType = "Notes"; // default
+                          if (doc.type === 'pdf') {
+                            // Check if it's handwritten notes or regular PDF based on the document title
+                            if (doc.name.toLowerCase().includes('handwritten')) {
+                              docType = "Handwritten Notes";
+                            } else {
+                              docType = "PDFs";
+                            }
+                          } else if (doc.type === 'text') {
+                            // Check content type based on document title or content
+                            if (doc.name.toLowerCase().includes('youtube') || doc.name.toLowerCase().includes('video')) {
+                              docType = "YouTube Video";
+                            } else if (doc.name.toLowerCase().includes('website') || doc.name.toLowerCase().includes('link')) {
+                              docType = "Website Link";
+                            } else {
+                              docType = "Notes";
+                            }
+                          }
                           onDocumentSelect?.(docType, doc.id);
                         }}
                       >

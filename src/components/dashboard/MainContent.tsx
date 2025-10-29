@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Play, Loader2 } from "lucide-react";
+import { Search, Play, Loader2, FileText, Upload, Link, ExternalLink } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { processDocument } from "@/lib/api";
+import { processDocument, getDocumentById, updateDocument, attachPdfToDocument, type Document } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface MainContentProps {
@@ -17,12 +17,72 @@ interface MainContentProps {
 const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProps) => {
   const [isProcessed, setIsProcessed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [documentData, setDocumentData] = useState<Document | null>(null);
+  const [loading, setLoading] = useState(false);
   const [notesContent, setNotesContent] = useState("");
   const [youtubeLink, setYoutubeLink] = useState("");
   const [websiteLink, setWebsiteLink] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
+
+  // Fetch document data when a document is selected
+  useEffect(() => {
+    const fetchDocument = async () => {
+      if (selectedDocumentId && mode === "source") {
+        setLoading(true);
+        // Clear all content state first
+        setNotesContent("");
+        setYoutubeLink("");
+        setWebsiteLink("");
+        setPdfFile(null);
+        setImageFiles([]);
+        
+        try {
+          const doc = await getDocumentById(selectedDocumentId);
+          setDocumentData(doc);
+          
+          // Pre-populate form fields based on document type and content ONLY if content exists
+          if (doc.type === 'text' && doc.content) {
+            if (documentType === 'Notes') {
+              setNotesContent(doc.content);
+            } else if (documentType === 'YouTube Video' || documentType === 'YouTube video') {
+              setYoutubeLink(doc.content);
+            } else if (documentType === 'Website Link') {
+              setWebsiteLink(doc.content);
+            }
+          }
+          
+          // Set editing mode based on whether content exists
+          const hasContent = (doc.type === 'text' && doc.content && doc.content.trim()) || 
+                           (doc.type === 'pdf' && doc.fileName);
+          setIsEditing(!hasContent);
+        } catch (error: any) {
+          console.error('Error fetching document:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load document data",
+            variant: "destructive"
+          });
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Clear all state when no document is selected
+        setDocumentData(null);
+        setNotesContent("");
+        setYoutubeLink("");
+        setWebsiteLink("");
+        setPdfFile(null);
+        setImageFiles([]);
+        setIsEditing(false);
+      }
+    };
+
+    fetchDocument();
+  }, [selectedDocumentId, mode, documentType]);
 
   const handleProcess = async () => {
     if (!selectedDocumentId) {
@@ -54,8 +114,240 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
     }
   };
 
+  const handleSaveContent = async (content: string) => {
+    if (!selectedDocumentId || !documentData) return;
+    
+    try {
+      await updateDocument(selectedDocumentId, {
+        content: content
+      });
+      
+      setIsEditing(false);
+      toast({
+        title: "Saved",
+        description: "Content saved successfully"
+      });
+    } catch (error: any) {
+      console.error('Error saving content:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save content",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handlePdfUpload = async (file: File) => {
+    if (!selectedDocumentId) return;
+    
+    setIsUploading(true);
+    try {
+      const updatedDoc = await attachPdfToDocument(selectedDocumentId, file);
+      setDocumentData(updatedDoc);
+      setPdfFile(null);
+      setIsEditing(false);
+      
+      toast({
+        title: "Success",
+        description: "PDF uploaded successfully"
+      });
+    } catch (error: any) {
+      console.error('Error uploading PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload PDF",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const renderDocumentContent = () => {
+    if (!documentData) {
+      return (
+        <div className="text-center text-muted-foreground py-8">
+          <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>No content available</p>
+          <Button 
+            variant="outline" 
+            className="mt-4"
+            onClick={() => setIsEditing(true)}
+          >
+            Add Content
+          </Button>
+        </div>
+      );
+    }
+
+    switch (documentType) {
+      case "Notes":
+        if (!documentData.content || !documentData.content.trim()) {
+          return (
+            <div className="text-center text-muted-foreground py-8">
+              <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No notes content available</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => setIsEditing(true)}
+              >
+                Add Notes
+              </Button>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">{documentData.title}</h2>
+              <Button variant="outline" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+            </div>
+            <div className="prose max-w-none">
+              <div className="whitespace-pre-wrap bg-muted/30 p-4 rounded-lg">
+                {documentData.content}
+              </div>
+            </div>
+          </div>
+        );
+      
+      case "YouTube Video":
+      case "YouTube video":
+        if (!documentData.content || !documentData.content.trim()) {
+          return (
+            <div className="text-center text-muted-foreground py-8">
+              <Link className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No YouTube link available</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => setIsEditing(true)}
+              >
+                Add Link
+              </Button>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">{documentData.title}</h2>
+              <Button variant="outline" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+            </div>
+            <div className="border rounded-lg p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <Link className="w-5 h-5 text-red-500" />
+                <span className="font-medium">YouTube Video</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">{documentData.content}</p>
+              <Button onClick={() => window.open(documentData.content, '_blank')}>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Watch Video
+              </Button>
+            </div>
+          </div>
+        );
+      
+      case "Website Link":
+        if (!documentData.content || !documentData.content.trim()) {
+          return (
+            <div className="text-center text-muted-foreground py-8">
+              <Link className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No website link available</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => setIsEditing(true)}
+              >
+                Add Link
+              </Button>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">{documentData.title}</h2>
+              <Button variant="outline" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+            </div>
+            <div className="border rounded-lg p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <ExternalLink className="w-5 h-5 text-blue-500" />
+                <span className="font-medium">Website Link</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">{documentData.content}</p>
+              <Button onClick={() => window.open(documentData.content, '_blank')}>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Visit Website
+              </Button>
+            </div>
+          </div>
+        );
+      
+      case "PDFs":
+      case "Handwritten Notes":
+        if (!documentData.fileName) {
+          return (
+            <div className="text-center text-muted-foreground py-8">
+              <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No PDF file attached</p>
+              <Button 
+                variant="outline" 
+                className="mt-4"
+                onClick={() => setIsEditing(true)}
+              >
+                Upload PDF
+              </Button>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">{documentData.title}</h2>
+              <Button variant="outline" onClick={() => setIsEditing(true)}>
+                Change PDF
+              </Button>
+            </div>
+            <div className="border rounded-lg p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <FileText className="w-8 h-8 text-red-500" />
+                <div>
+                  <p className="font-medium">{documentData.fileName}</p>
+                  {documentData.fileSize && (
+                    <p className="text-sm text-muted-foreground">
+                      {(documentData.fileSize / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  )}
+                </div>
+              </div>
+              {documentData.fileUrl && (
+                <Button onClick={() => window.open(documentData.fileUrl, '_blank')}>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  View PDF
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      
+      default:
+        return (
+          <div className="text-center text-muted-foreground py-8">
+            <p>Unknown document type</p>
+          </div>
+        );
+    }
+  };
+
   const renderSourceInput = () => {
-    if (!documentType) {
+    if (!documentType || !selectedDocumentId) {
       return (
         <div className="flex items-center justify-center h-full text-muted-foreground">
           <p>Select or add a document to get started</p>
@@ -63,88 +355,301 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
       );
     }
 
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <Loader2 className="w-6 h-6 animate-spin mr-2" />
+          <span>Loading document...</span>
+        </div>
+      );
+    }
+
+    // Show document content if not editing and document exists
+    if (!isEditing && documentData) {
+      return renderDocumentContent();
+    }
+
     switch (documentType) {
       case "Notes":
         return (
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="notes">Enter Your Notes</Label>
-              <Textarea
-                id="notes"
-                placeholder="Start typing your notes here..."
-                className="min-h-[400px] mt-2"
-                value={notesContent}
-                onChange={(e) => setNotesContent(e.target.value)}
-              />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="notes">Text Notes</Label>
+              {documentData && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <FileText className="w-4 h-4 mr-1" />
+                  {documentData.title}
+                </div>
+              )}
+            </div>
+            <Textarea
+              id="notes"
+              placeholder="Start typing your notes here..."
+              className="min-h-[400px]"
+              value={notesContent}
+              onChange={(e) => setNotesContent(e.target.value)}
+            />
+            <div className="flex space-x-2">
+              <Button onClick={() => handleSaveContent(notesContent)}>
+                Save Notes
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setNotesContent(documentData?.content || "");
+                setIsEditing(false);
+              }}>
+                Cancel
+              </Button>
             </div>
           </div>
         );
       case "PDFs":
         return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="pdf">Upload PDF</Label>
-              <Input
-                id="pdf"
-                type="file"
-                accept=".pdf"
-                className="mt-2"
-                onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
-              />
-              {pdfFile && <p className="text-sm text-muted-foreground mt-2">Selected: {pdfFile.name}</p>}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <Label>PDF Document</Label>
+              {documentData && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <FileText className="w-4 h-4 mr-1" />
+                  {documentData.title}
+                </div>
+              )}
             </div>
+            
+            {documentData?.fileName ? (
+              <div className="border rounded-lg p-6 bg-muted/50">
+                <div className="flex items-center justify-center space-x-3 text-center">
+                  <FileText className="w-8 h-8 text-primary" />
+                  <div>
+                    <p className="font-medium">{documentData.fileName}</p>
+                    {documentData.fileSize && (
+                      <p className="text-sm text-muted-foreground">
+                        {(documentData.fileSize / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {documentData.fileUrl && (
+                  <div className="mt-4 text-center">
+                    <Button variant="outline" onClick={() => window.open(documentData.fileUrl, '_blank')}>
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      View PDF
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                  <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-medium mb-2">No PDF attached</p>
+                  <p className="text-muted-foreground mb-4">Upload a PDF file to get started</p>
+                  <Input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setPdfFile(file);
+                      }
+                    }}
+                    className="mb-4"
+                  />
+                  {pdfFile && (
+                    <div className="flex items-center justify-center space-x-2">
+                      <p className="text-sm">Selected: {pdfFile.name}</p>
+                      <Button 
+                        onClick={() => handlePdfUpload(pdfFile)}
+                        disabled={isUploading}
+                        size="sm"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          'Upload'
+                        )}
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setPdfFile(null);
+                          setIsEditing(false);
+                        }}
+                        disabled={isUploading}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
+      case "YouTube Video":
       case "YouTube video":
         return (
           <div className="space-y-4">
-            <div>
+            <div className="flex items-center justify-between">
               <Label htmlFor="youtube">YouTube Video Link</Label>
-              <Input
-                id="youtube"
-                type="url"
-                placeholder="https://youtube.com/watch?v=..."
-                className="mt-2"
-                value={youtubeLink}
-                onChange={(e) => setYoutubeLink(e.target.value)}
-              />
+              {documentData && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Link className="w-4 h-4 mr-1" />
+                  {documentData.title}
+                </div>
+              )}
+            </div>
+            <Input
+              id="youtube"
+              type="url"
+              placeholder="https://youtube.com/watch?v=..."
+              value={youtubeLink}
+              onChange={(e) => setYoutubeLink(e.target.value)}
+            />
+            <div className="flex space-x-2">
+              <Button onClick={() => handleSaveContent(youtubeLink)} disabled={!youtubeLink.trim()}>
+                Save Link
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setYoutubeLink(documentData?.content || "");
+                setIsEditing(false);
+              }}>
+                Cancel
+              </Button>
+              {youtubeLink && (
+                <Button variant="outline" onClick={() => window.open(youtubeLink, '_blank')}>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Preview
+                </Button>
+              )}
             </div>
           </div>
         );
       case "Handwritten Notes":
         return (
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="handwritten">Upload Handwritten Notes</Label>
-              <Input
-                id="handwritten"
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                multiple
-                className="mt-2"
-                onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
-              />
-              {imageFiles.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  {imageFiles.length} file(s) selected
-                </p>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <Label>Handwritten Notes (PDF)</Label>
+              {documentData && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <FileText className="w-4 h-4 mr-1" />
+                  {documentData.title}
+                </div>
               )}
             </div>
+            
+            {documentData?.fileName ? (
+              <div className="border rounded-lg p-6 bg-muted/50">
+                <div className="flex items-center justify-center space-x-3 text-center">
+                  <FileText className="w-8 h-8 text-primary" />
+                  <div>
+                    <p className="font-medium">{documentData.fileName}</p>
+                    {documentData.fileSize && (
+                      <p className="text-sm text-muted-foreground">
+                        {(documentData.fileSize / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    )}
+                  </div>
+                </div>
+                {documentData.fileUrl && (
+                  <div className="mt-4 text-center">
+                    <Button variant="outline" onClick={() => window.open(documentData.fileUrl, '_blank')}>
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      View Notes
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                  <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-medium mb-2">No PDF attached</p>
+                  <p className="text-muted-foreground mb-4">Upload a PDF of your handwritten notes</p>
+                  <Input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setPdfFile(file);
+                      }
+                    }}
+                    className="mb-4"
+                  />
+                  {pdfFile && (
+                    <div className="flex items-center justify-center space-x-2">
+                      <p className="text-sm">Selected: {pdfFile.name}</p>
+                      <Button 
+                        onClick={() => handlePdfUpload(pdfFile)}
+                        disabled={isUploading}
+                        size="sm"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          'Upload'
+                        )}
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setPdfFile(null);
+                          setIsEditing(false);
+                        }}
+                        disabled={isUploading}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         );
       case "Website Link":
         return (
           <div className="space-y-4">
-            <div>
+            <div className="flex items-center justify-between">
               <Label htmlFor="website">Website Link</Label>
-              <Input
-                id="website"
-                type="url"
-                placeholder="https://example.com"
-                className="mt-2"
-                value={websiteLink}
-                onChange={(e) => setWebsiteLink(e.target.value)}
-              />
+              {documentData && (
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <Link className="w-4 h-4 mr-1" />
+                  {documentData.title}
+                </div>
+              )}
+            </div>
+            <Input
+              id="website"
+              type="url"
+              placeholder="https://example.com"
+              value={websiteLink}
+              onChange={(e) => setWebsiteLink(e.target.value)}
+            />
+            <div className="flex space-x-2">
+              <Button onClick={() => handleSaveContent(websiteLink)} disabled={!websiteLink.trim()}>
+                Save Link
+              </Button>
+              <Button variant="outline" onClick={() => {
+                setWebsiteLink(documentData?.content || "");
+                setIsEditing(false);
+              }}>
+                Cancel
+              </Button>
+              {websiteLink && (
+                <Button variant="outline" onClick={() => window.open(websiteLink, '_blank')}>
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Preview
+                </Button>
+              )}
             </div>
           </div>
         );
