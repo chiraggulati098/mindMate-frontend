@@ -118,11 +118,14 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
     if (!selectedDocumentId || !documentData) return;
     
     try {
-      await updateDocument(selectedDocumentId, {
+      const updatedDoc = await updateDocument(selectedDocumentId, {
         content: content
       });
       
+      // Update the document data with the new content
+      setDocumentData(updatedDoc);
       setIsEditing(false);
+      
       toast({
         title: "Saved",
         description: "Content saved successfully"
