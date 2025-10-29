@@ -109,4 +109,22 @@ export async function deleteSubject(id: string): Promise<void> {
   }
 }
 
+export async function validateToken(): Promise<boolean> {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return false;
+  }
+
+  try {
+    const res = await fetch(`${baseUrl}/auth/validate`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export default { signup, login };
