@@ -127,6 +127,14 @@ export async function validateToken(): Promise<boolean> {
   }
 }
 
+// Processing Status Enum
+export enum ProcessingStatus {
+  NOT_PROCESSED = 'NOT_PROCESSED',
+  PROCESSING = 'PROCESSING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
 // Document API functions
 export type Document = {
   _id: string;
@@ -140,6 +148,14 @@ export type Document = {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  // Processing status fields
+  summary_status?: ProcessingStatus;
+  flashcard_status?: ProcessingStatus;
+  mcq_status?: ProcessingStatus;
+  // Content fields
+  summary?: string;
+  flashcard?: string;
+  mcq?: string;
 };
 
 export async function createDocument(payload: {

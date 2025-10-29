@@ -5,7 +5,7 @@ import { Search, Play, Loader2, FileText, Upload, Link, ExternalLink } from "luc
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { processDocument, getDocumentById, updateDocument, attachPdfToDocument, type Document } from "@/lib/api";
+import { processDocument, getDocumentById, updateDocument, attachPdfToDocument, type Document, ProcessingStatus } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface MainContentProps {
@@ -28,10 +28,42 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
   const [isEditing, setIsEditing] = useState(false);
   const { toast } = useToast();
 
+  // Add polling for processing status updates
+  const startStatusPolling = () => {
+    const interval = setInterval(async () => {
+      if (selectedDocumentId) {
+        try {
+          const updatedDoc = await getDocumentById(selectedDocumentId);
+          setDocumentData(updatedDoc);
+          
+          // Stop polling if all processing is complete or failed
+          const allComplete = [
+            updatedDoc.summary_status,
+            updatedDoc.flashcard_status,
+            updatedDoc.mcq_status
+          ].every(status => 
+            status === ProcessingStatus.COMPLETED || 
+            status === ProcessingStatus.FAILED
+          );
+          
+          if (allComplete) {
+            clearInterval(interval);
+          }
+        } catch (error) {
+          console.error('Error polling document status:', error);
+          clearInterval(interval);
+        }
+      }
+    }, 3000); // Poll every 3 seconds
+    
+    // Clear interval after 10 minutes to prevent indefinite polling
+    setTimeout(() => clearInterval(interval), 600000);
+  };
+
   // Fetch document data when a document is selected
   useEffect(() => {
     const fetchDocument = async () => {
-      if (selectedDocumentId && mode === "source") {
+      if (selectedDocumentId) {
         setLoading(true);
         // Clear all content state first
         setNotesContent("");
@@ -44,8 +76,8 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
           const doc = await getDocumentById(selectedDocumentId);
           setDocumentData(doc);
           
-          // Pre-populate form fields based on document type and content ONLY if content exists
-          if (doc.type === 'text' && doc.content) {
+          // Pre-populate form fields based on document type and content ONLY if content exists and in source mode
+          if (mode === "source" && doc.type === 'text' && doc.content) {
             if (documentType === 'Notes') {
               setNotesContent(doc.content);
             } else if (documentType === 'YouTube Video' || documentType === 'YouTube video') {
@@ -55,10 +87,14 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
             }
           }
           
-          // Set editing mode based on whether content exists
-          const hasContent = (doc.type === 'text' && doc.content && doc.content.trim()) || 
-                           (doc.type === 'pdf' && doc.fileName);
-          setIsEditing(!hasContent);
+          // Set editing mode based on whether content exists (only for source mode)
+          if (mode === "source") {
+            const hasContent = (doc.type === 'text' && doc.content && doc.content.trim()) || 
+                             (doc.type === 'pdf' && doc.fileName);
+            setIsEditing(!hasContent);
+          } else {
+            setIsEditing(false);
+          }
         } catch (error: any) {
           console.error('Error fetching document:', error);
           toast({
@@ -97,11 +133,19 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
     setIsProcessing(true);
     try {
       await processDocument(selectedDocumentId);
+      
+      // Refresh document data to get updated processing status
+      const updatedDoc = await getDocumentById(selectedDocumentId);
+      setDocumentData(updatedDoc);
+      
       setIsProcessed(true);
       toast({
-        title: "Document processed successfully",
-        description: "Your document has been processed and is ready for summarization, flashcards, and MCQs.",
+        title: "Document processing started",
+        description: "Your document is being processed. Check the Summary, Flashcards, and MCQs tabs for progress.",
       });
+      
+      // Start polling for status updates
+      startStatusPolling();
     } catch (error) {
       console.error("Error processing document:", error);
       toast({
@@ -666,128 +710,305 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
       case "source":
         return renderSourceInput();
       case "summary":
-        if (!isProcessed) {
+        if (!selectedDocumentId) {
           return (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>Process the Source Content first</p>
+              <p>Select a document to view summary</p>
             </div>
           );
         }
-        return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Summary</h2>
-            <div className="p-6 rounded-lg bg-muted">
-              <p className="text-lg mb-4">
-                Data structures are fundamental concepts in computer science that organize and
-                store data efficiently.
-              </p>
-              <p>
-                Key types include arrays, linked lists, stacks, queues, trees, and graphs. Each
-                serves specific purposes and offers different performance characteristics for
-                various operations.
-              </p>
-            </div>
-          </div>
-        );
-      case "flashcards":
-        if (!isProcessed) {
+        
+        if (loading) {
           return (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>Process the Source Content first</p>
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              <span>Loading document...</span>
             </div>
           );
         }
-        return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold mb-6">Flashcards</h2>
-            <div className="grid gap-4">
-              {[
-                { q: "What is an array?", a: "A fixed-size sequential collection of elements of the same type" },
-                { q: "What does LIFO stand for?", a: "Last In First Out - the principle used by stacks" },
-                { q: "What is a tree structure?", a: "A hierarchical data structure with a root node and child nodes" },
-              ].map((card, index) => (
-                <div key={index} className="p-6 rounded-lg border bg-card hover:shadow-md transition-shadow">
-                  <div className="font-semibold text-primary mb-3">Q: {card.q}</div>
-                  <div className="text-muted-foreground">A: {card.a}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      case "mcqs":
-        if (!isProcessed) {
+        
+        const summaryStatus = documentData?.summary_status || ProcessingStatus.NOT_PROCESSED;
+        
+        if (summaryStatus === ProcessingStatus.NOT_PROCESSED) {
           return (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <p>Process the Source Content first</p>
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <FileText className="w-16 h-16 text-muted-foreground opacity-50" />
+              <div>
+                <p className="text-lg font-medium text-muted-foreground mb-2">Summary Not Generated</p>
+                <p className="text-sm text-muted-foreground mb-4">Click the Process button to generate a summary</p>
+                <Button variant="outline" onClick={handleProcess} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Click Process
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           );
         }
-        return (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold mb-6">Multiple Choice Questions</h2>
-            <div className="space-y-6">
-              {[
-                {
-                  q: "Which data structure follows LIFO principle?",
-                  options: ["Queue", "Stack", "Array", "Tree"],
-                  correct: 1,
-                },
-                {
-                  q: "What is the time complexity of accessing an element in an array?",
-                  options: ["O(n)", "O(log n)", "O(1)", "O(n²)"],
-                  correct: 2,
-                },
-                {
-                  q: "Which data structure is best suited for implementing a breadth-first search?",
-                  options: ["Stack", "Array", "Queue", "Linked List"],
-                  correct: 2,
-                },
-                {
-                  q: "What is the main advantage of a linked list over an array?",
-                  options: ["Faster access time", "Dynamic size", "Less memory usage", "Better cache performance"],
-                  correct: 1,
-                },
-                {
-                  q: "In a binary tree, what is the maximum number of children a node can have?",
-                  options: ["1", "2", "3", "Unlimited"],
-                  correct: 1,
-                },
-                {
-                  q: "Which data structure uses FIFO principle?",
-                  options: ["Stack", "Queue", "Tree", "Graph"],
-                  correct: 1,
-                },
-                {
-                  q: "What is the worst-case time complexity for searching in a binary search tree?",
-                  options: ["O(1)", "O(log n)", "O(n)", "O(n log n)"],
-                  correct: 2,
-                },
-                {
-                  q: "Which operation is NOT typically performed on a hash table?",
-                  options: ["Insert", "Delete", "Sort", "Search"],
-                  correct: 2,
-                },
-              ].map((question, qIndex) => (
-                <div key={qIndex} className="p-6 rounded-lg border bg-card">
-                  <p className="font-semibold mb-4">
-                    {qIndex + 1}. {question.q}
-                  </p>
-                  <div className="space-y-2">
-                    {question.options.map((option, oIndex) => (
-                      <Button
-                        key={oIndex}
-                        variant="outline"
-                        className="w-full justify-start"
-                      >
-                        {String.fromCharCode(65 + oIndex)}. {option}
-                      </Button>
-                    ))}
+        
+        if (summaryStatus === ProcessingStatus.PROCESSING) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <Loader2 className="w-16 h-16 text-primary animate-spin" />
+              <div>
+                <p className="text-lg font-medium mb-2">Processing</p>
+                <p className="text-muted-foreground">Generating the best summary for you...</p>
+              </div>
+            </div>
+          );
+        }
+        
+        if (summaryStatus === ProcessingStatus.FAILED) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <FileText className="w-16 h-16 text-destructive opacity-50" />
+              <div>
+                <p className="text-lg font-medium text-destructive mb-2">Processing Failed</p>
+                <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try processing again.</p>
+                <Button variant="outline" onClick={handleProcess} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Process Again
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          );
+        }
+        
+        if (summaryStatus === ProcessingStatus.COMPLETED) {
+          return (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold">Summary</h2>
+              <div className="p-6 rounded-lg bg-muted">
+                {documentData?.summary ? (
+                  <div className="whitespace-pre-wrap">{documentData.summary}</div>
+                ) : (
+                  <div className="text-muted-foreground italic">
+                    Summary content is not available. Please try processing again.
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
             </div>
-          </div>
-        );
+          );
+        }
+        
+        return null;
+      case "flashcards":
+        if (!selectedDocumentId) {
+          return (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p>Select a document to view flashcards</p>
+            </div>
+          );
+        }
+        
+        if (loading) {
+          return (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              <span>Loading document...</span>
+            </div>
+          );
+        }
+        
+        const flashcardStatus = documentData?.flashcard_status || ProcessingStatus.NOT_PROCESSED;
+        
+        if (flashcardStatus === ProcessingStatus.NOT_PROCESSED) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <FileText className="w-16 h-16 text-muted-foreground opacity-50" />
+              <div>
+                <p className="text-lg font-medium text-muted-foreground mb-2">Flashcards Not Generated</p>
+                <p className="text-sm text-muted-foreground mb-4">Click the Process button to generate flashcards</p>
+                <Button variant="outline" onClick={handleProcess} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Click Process
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          );
+        }
+        
+        if (flashcardStatus === ProcessingStatus.PROCESSING) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <Loader2 className="w-16 h-16 text-primary animate-spin" />
+              <div>
+                <p className="text-lg font-medium mb-2">Processing</p>
+                <p className="text-muted-foreground">Generating the best flashcards for you...</p>
+              </div>
+            </div>
+          );
+        }
+        
+        if (flashcardStatus === ProcessingStatus.FAILED) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <FileText className="w-16 h-16 text-destructive opacity-50" />
+              <div>
+                <p className="text-lg font-medium text-destructive mb-2">Processing Failed</p>
+                <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try processing again.</p>
+                <Button variant="outline" onClick={handleProcess} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Process Again
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          );
+        }
+        
+        if (flashcardStatus === ProcessingStatus.COMPLETED) {
+          return (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold mb-6">Flashcards</h2>
+              <div className="space-y-4">
+                {documentData?.flashcard ? (
+                  <div className="whitespace-pre-wrap p-6 rounded-lg bg-muted">{documentData.flashcard}</div>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    <p>Flashcard content is not available. Please try processing again.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+        
+        return null;
+      case "mcqs":
+        if (!selectedDocumentId) {
+          return (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              <p>Select a document to view MCQs</p>
+            </div>
+          );
+        }
+        
+        if (loading) {
+          return (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin mr-2" />
+              <span>Loading document...</span>
+            </div>
+          );
+        }
+        
+        const mcqStatus = documentData?.mcq_status || ProcessingStatus.NOT_PROCESSED;
+        
+        if (mcqStatus === ProcessingStatus.NOT_PROCESSED) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <FileText className="w-16 h-16 text-muted-foreground opacity-50" />
+              <div>
+                <p className="text-lg font-medium text-muted-foreground mb-2">MCQs Not Generated</p>
+                <p className="text-sm text-muted-foreground mb-4">Click the Process button to generate multiple choice questions</p>
+                <Button variant="outline" onClick={handleProcess} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Click Process
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          );
+        }
+        
+        if (mcqStatus === ProcessingStatus.PROCESSING) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <Loader2 className="w-16 h-16 text-primary animate-spin" />
+              <div>
+                <p className="text-lg font-medium mb-2">Processing</p>
+                <p className="text-muted-foreground">Generating the best MCQs for you...</p>
+              </div>
+            </div>
+          );
+        }
+        
+        if (mcqStatus === ProcessingStatus.FAILED) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+              <FileText className="w-16 h-16 text-destructive opacity-50" />
+              <div>
+                <p className="text-lg font-medium text-destructive mb-2">Processing Failed</p>
+                <p className="text-sm text-muted-foreground mb-4">Something went wrong. Please try processing again.</p>
+                <Button variant="outline" onClick={handleProcess} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-4 h-4 mr-2" />
+                      Process Again
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          );
+        }
+        
+        if (mcqStatus === ProcessingStatus.COMPLETED) {
+          return (
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold mb-6">Multiple Choice Questions</h2>
+              <div className="space-y-4">
+                {documentData?.mcq ? (
+                  <div className="whitespace-pre-wrap p-6 rounded-lg bg-muted">{documentData.mcq}</div>
+                ) : (
+                  <div className="text-center text-muted-foreground py-8">
+                    <p>MCQ content is not available. Please try processing again.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+        
+        return null;
     }
   };
 
@@ -810,7 +1031,7 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
       </ScrollArea>
 
       {/* Floating Process Button */}
-      {mode === "source" && documentType && selectedDocumentId && !isProcessed && (
+      {mode === "source" && documentType && selectedDocumentId && (
         <div className="absolute bottom-6 right-6">
           <Button
             onClick={handleProcess}
@@ -822,6 +1043,11 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 Processing...
+              </>
+            ) : isProcessed ? (
+              <>
+                <Play className="w-5 h-5 mr-2" />
+                Process Again
               </>
             ) : (
               <>
