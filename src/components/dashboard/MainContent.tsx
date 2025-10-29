@@ -1,26 +1,57 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, Play, Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { processDocument } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface MainContentProps {
   mode: "source" | "summary" | "flashcards" | "mcqs";
   documentType: string | null;
+  selectedDocumentId?: string | null;
 }
 
-const MainContent = ({ mode, documentType }: MainContentProps) => {
+const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProps) => {
   const [isProcessed, setIsProcessed] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [notesContent, setNotesContent] = useState("");
   const [youtubeLink, setYoutubeLink] = useState("");
   const [websiteLink, setWebsiteLink] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const { toast } = useToast();
 
-  const handleProcess = () => {
-    setIsProcessed(true);
+  const handleProcess = async () => {
+    if (!selectedDocumentId) {
+      toast({
+        title: "No document selected",
+        description: "Please select a document to process.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await processDocument(selectedDocumentId);
+      setIsProcessed(true);
+      toast({
+        title: "Document processed successfully",
+        description: "Your document has been processed and is ready for summarization, flashcards, and MCQs.",
+      });
+    } catch (error) {
+      console.error("Error processing document:", error);
+      toast({
+        title: "Processing failed",
+        description: error instanceof Error ? error.message : "Failed to process document. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const renderSourceInput = () => {
@@ -253,7 +284,7 @@ const MainContent = ({ mode, documentType }: MainContentProps) => {
   };
 
   return (
-    <main className="flex-1 flex flex-col">
+    <main className="flex-1 flex flex-col relative">
       <div className="p-4 border-b">
         <div className="flex gap-2">
           <Input
@@ -270,9 +301,27 @@ const MainContent = ({ mode, documentType }: MainContentProps) => {
         <div className="p-6">{renderContent()}</div>
       </ScrollArea>
 
-      {mode === "source" && documentType && !isProcessed && (
-        <div className="p-4 border-t flex justify-end">
-          <Button onClick={handleProcess}>Process</Button>
+      {/* Floating Process Button */}
+      {mode === "source" && documentType && selectedDocumentId && !isProcessed && (
+        <div className="absolute bottom-6 right-6">
+          <Button
+            onClick={handleProcess}
+            disabled={isProcessing}
+            size="lg"
+            className="shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5 mr-2" />
+                Process Document
+              </>
+            )}
+          </Button>
         </div>
       )}
     </main>
