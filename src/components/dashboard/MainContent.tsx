@@ -29,8 +29,8 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
   const [isEditing, setIsEditing] = useState(false);
   const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
   const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
-  const [mcqAnswers, setMcqAnswers] = useState<Record<number, string>>({});
-  const [mcqSubmitted, setMcqSubmitted] = useState<Record<number, boolean>>({});
+  const [mcqAnswers, setMcqAnswers] = useState<Record<string, Record<number, string>>>({});
+  const [mcqSubmitted, setMcqSubmitted] = useState<Record<string, Record<number, boolean>>>({});
   const { toast } = useToast();
 
   // Add polling for processing status updates
@@ -121,8 +121,7 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         setIsEditing(false);
         setCurrentFlashcardIndex(0);
         setIsFlashcardFlipped(false);
-        setMcqAnswers({});
-        setMcqSubmitted({});
+        // Keep MCQ state as it's now document-specific
       }
     };
 
@@ -1077,16 +1076,32 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
           }
           
           const handleMcqAnswer = (questionIndex: number, answer: string) => {
-            setMcqAnswers(prev => ({ ...prev, [questionIndex]: answer }));
+            if (!selectedDocumentId) return;
+            setMcqAnswers(prev => ({ 
+              ...prev, 
+              [selectedDocumentId]: { 
+                ...prev[selectedDocumentId], 
+                [questionIndex]: answer 
+              }
+            }));
           };
           
           const handleMcqSubmit = (questionIndex: number) => {
-            setMcqSubmitted(prev => ({ ...prev, [questionIndex]: true }));
+            if (!selectedDocumentId) return;
+            setMcqSubmitted(prev => ({ 
+              ...prev, 
+              [selectedDocumentId]: { 
+                ...prev[selectedDocumentId], 
+                [questionIndex]: true 
+              }
+            }));
           };
           
           const getOptionStyle = (questionIndex: number, optionKey: string, mcq: any) => {
-            const isSubmitted = mcqSubmitted[questionIndex];
-            const selectedAnswer = mcqAnswers[questionIndex];
+            const documentMcqSubmitted = selectedDocumentId ? mcqSubmitted[selectedDocumentId] || {} : {};
+            const documentMcqAnswers = selectedDocumentId ? mcqAnswers[selectedDocumentId] || {} : {};
+            const isSubmitted = documentMcqSubmitted[questionIndex];
+            const selectedAnswer = documentMcqAnswers[questionIndex];
             const correctAnswer = mcq.correct_answer;
             
             if (!isSubmitted) {
@@ -1112,8 +1127,10 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
               
               <div className="space-y-6">
                 {mcqs.map((mcq: any, questionIndex: number) => {
-                  const isSubmitted = mcqSubmitted[questionIndex];
-                  const selectedAnswer = mcqAnswers[questionIndex];
+                  const documentMcqSubmitted = selectedDocumentId ? mcqSubmitted[selectedDocumentId] || {} : {};
+                  const documentMcqAnswers = selectedDocumentId ? mcqAnswers[selectedDocumentId] || {} : {};
+                  const isSubmitted = documentMcqSubmitted[questionIndex];
+                  const selectedAnswer = documentMcqAnswers[questionIndex];
                   const correctAnswer = mcq.correct_answer;
                   
                   return (
