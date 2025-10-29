@@ -1,14 +1,24 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { signup, login } from "@/lib/api";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [isOTP, setIsOTP] = useState(false);
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
@@ -43,12 +53,51 @@ const Auth = () => {
         </CardHeader>
 
         <CardContent className="space-y-6">
-          <form className="space-y-4">
+          <form
+            className="space-y-4"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setError(null);
+              setLoading(true);
+              try {
+                if (!isLogin) {
+                  // Signup
+                  const resp = await signup({ name, email, password });
+                  if (resp.token) {
+                    localStorage.setItem("auth_token", resp.token);
+                    navigate("/dashboard");
+                  } else {
+                    setError(resp.message || "Signup succeeded but no token returned");
+                  }
+                } else {
+                  // Login
+                  if (isOTP) {
+                    // Backend OTP flow not implemented in API helper; keep placeholder.
+                    setError("OTP login is not supported yet.");
+                  } else {
+                    const resp = await login({ email, password });
+                    if (resp.token) {
+                      localStorage.setItem("auth_token", resp.token);
+                      navigate("/dashboard");
+                    } else {
+                      setError(resp.message || "Login succeeded but no token returned");
+                    }
+                  }
+                }
+              } catch (err: any) {
+                setError(err.message || "Something went wrong");
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
             {!isLogin && (
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input
                   id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
                   className="transition-all focus:ring-2 focus:ring-primary"
                 />
@@ -60,6 +109,8 @@ const Auth = () => {
               <Input
                 id="email"
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="transition-all focus:ring-2 focus:ring-primary"
               />
@@ -71,6 +122,8 @@ const Auth = () => {
                 <Input
                   id="password"
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="transition-all focus:ring-2 focus:ring-primary"
                 />
@@ -82,14 +135,18 @@ const Auth = () => {
                 <Label htmlFor="otp">One-Time Password</Label>
                 <Input
                   id="otp"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
                   placeholder="Enter OTP"
                   className="transition-all focus:ring-2 focus:ring-primary"
                 />
               </div>
             )}
 
-            <Button type="submit" className="w-full" size="lg">
-              {isLogin ? "Sign in" : "Sign up"}
+            {error && <div className="text-sm text-red-500">{error}</div>}
+
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              {loading ? (isLogin ? "Signing in..." : "Signing up...") : isLogin ? "Sign in" : "Sign up"}
             </Button>
 
             {isLogin && (
@@ -98,6 +155,7 @@ const Auth = () => {
                 variant="outline"
                 className="w-full"
                 onClick={() => setIsOTP(!isOTP)}
+                disabled={loading}
               >
                 {isOTP ? "Use Password" : "Login with OTP"}
               </Button>
@@ -106,7 +164,10 @@ const Auth = () => {
 
           <div className="text-center text-sm">
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setError(null);
+              }}
               className="text-primary hover:underline"
             >
               {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
