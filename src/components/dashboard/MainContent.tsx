@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { processDocument, getDocumentById, updateDocument, attachPdfToDocument, type Document, ProcessingStatus } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface MainContentProps {
   mode: "source" | "summary" | "flashcards" | "mcqs";
@@ -805,7 +807,23 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
               <h2 className="text-2xl font-bold">Summary</h2>
               <div className="p-6 rounded-lg bg-muted">
                 {documentData?.summary ? (
-                  <div className="whitespace-pre-wrap">{documentData.summary}</div>
+                  <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:text-foreground prose-p:text-foreground prose-strong:text-foreground prose-ul:text-foreground prose-ol:text-foreground prose-li:text-foreground">
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: ({children}) => <h1 className="text-2xl font-bold mb-4 text-foreground">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-xl font-semibold mb-3 text-foreground">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-lg font-medium mb-2 text-foreground">{children}</h3>,
+                        ul: ({children}) => <ul className="list-disc pl-6 mb-4 space-y-1">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal pl-6 mb-4 space-y-1">{children}</ol>,
+                        li: ({children}) => <li className="text-foreground">{children}</li>,
+                        p: ({children}) => <p className="mb-3 text-foreground leading-relaxed">{children}</p>,
+                        strong: ({children}) => <strong className="font-bold text-foreground">{children}</strong>,
+                      }}
+                    >
+                      {documentData.summary}
+                    </ReactMarkdown>
+                  </div>
                 ) : (
                   <div className="text-muted-foreground italic">
                     Summary content is not available. Please try processing again.
