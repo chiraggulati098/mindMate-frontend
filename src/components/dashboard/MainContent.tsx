@@ -31,21 +31,14 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
   const [isFlashcardFlipped, setIsFlashcardFlipped] = useState<Record<string, boolean>>({});
   const [mcqAnswers, setMcqAnswers] = useState<Record<string, Record<number, string>>>({});
   const [mcqSubmitted, setMcqSubmitted] = useState<Record<string, Record<number, boolean>>>({});
-  const [pollingIntervals, setPollingIntervals] = useState<Record<string, NodeJS.Timeout>>({});
   const { toast } = useToast();
 
-  // Add polling for processing status updates for the current document
-  const startStatusPolling = (documentId: string) => {
-    // Clear any existing polling for this document
-    if (pollingIntervals[documentId]) {
-      clearInterval(pollingIntervals[documentId]);
-    }
-    
+  // Add polling for processing status updates
+  const startStatusPolling = () => {
     const interval = setInterval(async () => {
-      // Only continue polling if this document is still selected
-      if (selectedDocumentId === documentId) {
+      if (selectedDocumentId) {
         try {
-          const updatedDoc = await getDocumentById(documentId);
+          const updatedDoc = await getDocumentById(selectedDocumentId);
           setDocumentData(updatedDoc);
           
           // Stop polling if all processing is complete or failed
@@ -60,59 +53,16 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
           
           if (allComplete) {
             clearInterval(interval);
-            setPollingIntervals(prev => {
-              const newIntervals = { ...prev };
-              delete newIntervals[documentId];
-              return newIntervals;
-            });
           }
         } catch (error) {
           console.error('Error polling document status:', error);
           clearInterval(interval);
-          setPollingIntervals(prev => {
-            const newIntervals = { ...prev };
-            delete newIntervals[documentId];
-            return newIntervals;
-          });
         }
-      } else {
-        // Document is no longer selected, stop polling
-        clearInterval(interval);
-        setPollingIntervals(prev => {
-          const newIntervals = { ...prev };
-          delete newIntervals[documentId];
-          return newIntervals;
-        });
       }
     }, 3000); // Poll every 3 seconds
     
-    // Store the interval
-    setPollingIntervals(prev => ({
-      ...prev,
-      [documentId]: interval
-    }));
-    
     // Clear interval after 10 minutes to prevent indefinite polling
-    setTimeout(() => {
-      clearInterval(interval);
-      setPollingIntervals(prev => {
-        const newIntervals = { ...prev };
-        delete newIntervals[documentId];
-        return newIntervals;
-      });
-    }, 600000);
-  };
-  
-  // Clean up polling intervals when component unmounts or document changes
-  const stopPollingForDocument = (documentId: string) => {
-    if (pollingIntervals[documentId]) {
-      clearInterval(pollingIntervals[documentId]);
-      setPollingIntervals(prev => {
-        const newIntervals = { ...prev };
-        delete newIntervals[documentId];
-        return newIntervals;
-      });
-    }
+    setTimeout(() => clearInterval(interval), 600000);
   };
 
 
@@ -120,11 +70,6 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
   // Fetch document data when a document is selected
   useEffect(() => {
     const fetchDocument = async () => {
-      // Stop all existing polling when switching documents
-      Object.keys(pollingIntervals).forEach(docId => {
-        stopPollingForDocument(docId);
-      });
-      
       if (selectedDocumentId) {
         setLoading(true);
         // Clear all content state first
@@ -137,17 +82,6 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         try {
           const doc = await getDocumentById(selectedDocumentId);
           setDocumentData(doc);
-          
-          // Check if any processing is ongoing and start polling if needed
-          const hasOngoingProcessing = [
-            doc.summary_status,
-            doc.flashcard_status,
-            doc.mcq_status
-          ].some(status => status === ProcessingStatus.PROCESSING);
-          
-          if (hasOngoingProcessing) {
-            startStatusPolling(selectedDocumentId);
-          }
           
           // Pre-populate form fields based on document type and content ONLY if content exists and in source mode
           if (mode === "source" && doc.type === 'text' && doc.content) {
@@ -193,16 +127,6 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
 
     fetchDocument();
   }, [selectedDocumentId, mode, documentType]);
-  
-  // Clean up polling when component unmounts
-  useEffect(() => {
-    return () => {
-      // Clear all polling intervals on unmount
-      Object.values(pollingIntervals).forEach(interval => {
-        if (interval) clearInterval(interval);
-      });
-    };
-  }, [pollingIntervals]);
 
   const handleProcess = async () => {
     if (!selectedDocumentId) {
@@ -228,8 +152,8 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         description: "Your document is being processed. Check the Summary, Flashcards, and MCQs tabs for progress.",
       });
       
-      // Start polling for status updates for this specific document
-      startStatusPolling(selectedDocumentId);
+      // Start polling for status updates
+      startStatusPolling();
     } catch (error) {
       console.error("Error processing document:", error);
       toast({
