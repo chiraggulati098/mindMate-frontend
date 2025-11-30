@@ -172,8 +172,6 @@ export type Document = {
   mcq_status?: ProcessingStatus;
   // Content fields
   summary?: string;
-  flashcard?: string; // Keep for backward compatibility
-  mcq?: string; // Keep for backward compatibility
   flashcards?: Flashcard[]; // New array format
   mcqs?: MCQ[]; // New array format
 };
