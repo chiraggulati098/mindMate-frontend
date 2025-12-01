@@ -84,27 +84,6 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         try {
           const doc = await getDocumentById(selectedDocumentId);
           setDocumentData(doc);
-          
-          // Pre-populate form fields based on document type and content ONLY if content exists and in source mode
-          if (mode === "source" && doc.content) {
-            if (documentType === 'Notes') {
-              setNotesContent(doc.content);
-            } else if (documentType === 'YouTube Video' || documentType === 'YouTube video') {
-              setYoutubeLink(doc.content);
-            } else if (documentType === 'Website Link') {
-              setWebsiteLink(doc.content);
-            }
-          }
-          
-          // Set editing mode based on whether content exists (only for source mode)
-          if (mode === "source") {
-            const hasContent = (doc.type === 'text' && doc.content && doc.content.trim()) || 
-                             (doc.type === 'pdf' && doc.fileName) ||
-                             ((doc.type === 'yt_video' || doc.type === 'website') && doc.content && doc.content.trim());
-            setIsEditing(!hasContent);
-          } else {
-            setIsEditing(false);
-          }
         } catch (error: any) {
           console.error('Error fetching document:', error);
           toast({
@@ -129,7 +108,29 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
     };
 
     fetchDocument();
-  }, [selectedDocumentId, mode, documentType]);
+  }, [selectedDocumentId]);
+
+  // Handle form pre-population and editing state based on mode and document data
+  useEffect(() => {
+    if (documentData && mode === "source") {
+      // Pre-populate form fields based on document type and content ONLY if content exists and in source mode
+      if (documentType === 'Notes') {
+        setNotesContent(documentData.content || "");
+      } else if (documentType === 'YouTube Video' || documentType === 'YouTube video') {
+        setYoutubeLink(documentData.content || "");
+      } else if (documentType === 'Website Link') {
+        setWebsiteLink(documentData.content || "");
+      }
+      
+      // Set editing mode based on whether content exists (only for source mode)
+      const hasContent = (documentData.type === 'text' && documentData.content && documentData.content.trim()) || 
+                         (documentData.type === 'pdf' && documentData.fileName) ||
+                         ((documentData.type === 'yt_video' || documentData.type === 'website') && documentData.content && documentData.content.trim());
+      setIsEditing(!hasContent);
+    } else {
+      setIsEditing(false);
+    }
+  }, [mode, documentData, documentType]);
 
   const handleProcess = async () => {
     if (!selectedDocumentId) {
