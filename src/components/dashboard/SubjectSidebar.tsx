@@ -166,7 +166,6 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
           'Notes': 'text',
           'PDF': 'pdf',
           'YouTube Video': 'text',
-          'Handwritten Notes': 'pdf',
           'Website Link': 'text'
         };
 
@@ -220,7 +219,6 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
           'Text Notes': 'text',
           'PDF Document': 'pdf',
           'YouTube Video': 'text',
-          'Handwritten Notes': 'pdf',
           'Website Link': 'text'
         };
 
@@ -474,12 +472,7 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
                                     YouTube Video
                                   </div>
                                 </SelectItem>
-                                <SelectItem value="Handwritten Notes">
-                                  <div className="flex items-center">
-                                    <FileText className="w-4 h-4 mr-2" />
-                                    Handwritten Notes
-                                  </div>
-                                </SelectItem>
+
                                 <SelectItem value="Website Link">
                                   <div className="flex items-center">
                                     <FileText className="w-4 h-4 mr-2" />
@@ -524,12 +517,7 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
                           // Map document type based on the actual document name/type for better UX
                           let docType = "Notes"; // default
                           if (doc.type === 'pdf') {
-                            // Check if it's handwritten notes or regular PDF based on the document title
-                            if (doc.name.toLowerCase().includes('handwritten')) {
-                              docType = "Handwritten Notes";
-                            } else {
-                              docType = "PDFs";
-                            }
+                            docType = "PDFs";
                           } else if (doc.type === 'text') {
                             // Check content type based on document title or content
                             if (doc.name.toLowerCase().includes('youtube') || doc.name.toLowerCase().includes('video')) {

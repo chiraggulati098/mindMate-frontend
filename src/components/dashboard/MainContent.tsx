@@ -348,7 +348,6 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
         );
       
       case "PDFs":
-      case "Handwritten Notes":
         if (!documentData.fileName) {
           return (
             <div className="text-center text-muted-foreground py-8">
@@ -585,93 +584,7 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
             </div>
           </div>
         );
-      case "Handwritten Notes":
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <Label>Handwritten Notes (PDF)</Label>
-              {documentData && (
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <FileText className="w-4 h-4 mr-1" />
-                  {documentData.title}
-                </div>
-              )}
-            </div>
-            
-            {documentData?.fileName ? (
-              <div className="border rounded-lg p-6 bg-muted/50">
-                <div className="flex items-center justify-center space-x-3 text-center">
-                  <FileText className="w-8 h-8 text-primary" />
-                  <div>
-                    <p className="font-medium">{documentData.fileName}</p>
-                    {documentData.fileSize && (
-                      <p className="text-sm text-muted-foreground">
-                        {(documentData.fileSize / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {documentData.fileUrl && (
-                  <div className="mt-4 text-center">
-                    <Button variant="outline" onClick={() => window.open(documentData.fileUrl, '_blank')}>
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      View Notes
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                  <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-lg font-medium mb-2">No PDF attached</p>
-                  <p className="text-muted-foreground mb-4">Upload a PDF of your handwritten notes</p>
-                  <Input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setPdfFile(file);
-                      }
-                    }}
-                    className="mb-4"
-                  />
-                  {pdfFile && (
-                    <div className="flex items-center justify-center space-x-2">
-                      <p className="text-sm">Selected: {pdfFile.name}</p>
-                      <Button 
-                        onClick={() => handlePdfUpload(pdfFile)}
-                        disabled={isUploading}
-                        size="sm"
-                      >
-                        {isUploading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          'Upload'
-                        )}
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setPdfFile(null);
-                          setIsEditing(false);
-                        }}
-                        disabled={isUploading}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        );
+
       case "Website Link":
         return (
           <div className="space-y-4">
