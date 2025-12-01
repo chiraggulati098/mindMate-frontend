@@ -157,7 +157,7 @@ export type MCQ = {
 export type Document = {
   _id: string;
   title: string;
-  type: 'text' | 'pdf';
+  type: 'text' | 'pdf' | 'yt_video' | 'website';
   content?: string;
   fileUrl?: string;
   fileName?: string;

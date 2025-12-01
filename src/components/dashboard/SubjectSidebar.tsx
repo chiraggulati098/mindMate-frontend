@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 interface Document {
   id: string;
   name: string;
-  type: 'text' | 'pdf';
+  type: 'text' | 'pdf' | 'yt_video' | 'website';
 }
 
 interface Subject {
@@ -514,19 +514,16 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
                         className="flex-1 justify-start text-sm"
                         onClick={() => {
                           setSelectedDoc(doc.id);
-                          // Map document type based on the actual document name/type for better UX
+                          // Map document type based on the actual document type from API
                           let docType = "Notes"; // default
                           if (doc.type === 'pdf') {
                             docType = "PDFs";
+                          } else if (doc.type === 'yt_video') {
+                            docType = "YouTube Video";
+                          } else if (doc.type === 'website') {
+                            docType = "Website Link";
                           } else if (doc.type === 'text') {
-                            // Check content type based on document title or content
-                            if (doc.name.toLowerCase().includes('youtube') || doc.name.toLowerCase().includes('video')) {
-                              docType = "YouTube Video";
-                            } else if (doc.name.toLowerCase().includes('website') || doc.name.toLowerCase().includes('link')) {
-                              docType = "Website Link";
-                            } else {
-                              docType = "Notes";
-                            }
+                            docType = "Notes";
                           }
                           onDocumentSelect?.(docType, doc.id);
                         }}

@@ -86,7 +86,7 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
           setDocumentData(doc);
           
           // Pre-populate form fields based on document type and content ONLY if content exists and in source mode
-          if (mode === "source" && doc.type === 'text' && doc.content) {
+          if (mode === "source" && doc.content) {
             if (documentType === 'Notes') {
               setNotesContent(doc.content);
             } else if (documentType === 'YouTube Video' || documentType === 'YouTube video') {
@@ -99,7 +99,8 @@ const MainContent = ({ mode, documentType, selectedDocumentId }: MainContentProp
           // Set editing mode based on whether content exists (only for source mode)
           if (mode === "source") {
             const hasContent = (doc.type === 'text' && doc.content && doc.content.trim()) || 
-                             (doc.type === 'pdf' && doc.fileName);
+                             (doc.type === 'pdf' && doc.fileName) ||
+                             ((doc.type === 'yt_video' || doc.type === 'website') && doc.content && doc.content.trim());
             setIsEditing(!hasContent);
           } else {
             setIsEditing(false);
