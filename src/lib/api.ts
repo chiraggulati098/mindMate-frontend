@@ -178,7 +178,7 @@ export type Document = {
 
 export async function createDocument(payload: {
   title: string;
-  type: 'text' | 'pdf';
+  type: 'text' | 'pdf' | 'yt_video' | 'website';
   content?: string;
   fileUrl?: string;
   fileName?: string;

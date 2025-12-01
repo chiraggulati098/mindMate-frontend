@@ -162,11 +162,11 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
   const handleAddDocument = async () => {
     if (selectedSubjectId && documentType) {
       try {
-        const docTypeMap: Record<string, 'text' | 'pdf'> = {
+        const docTypeMap: Record<string, 'text' | 'pdf' | 'yt_video' | 'website'> = {
           'Notes': 'text',
           'PDF': 'pdf',
-          'YouTube Video': 'text',
-          'Website Link': 'text'
+          'YouTube Video': 'yt_video',
+          'Website Link': 'website'
         };
 
         const apiDocType = docTypeMap[documentType] || 'text';
@@ -215,11 +215,11 @@ const SubjectSidebar = ({ onDocumentSelect }: SubjectSidebarProps) => {
   const handleAddStandaloneDocument = async () => {
     if (newDocumentSubject && newDocumentType && newDocumentTitle.trim()) {
       try {
-        const docTypeMap: Record<string, 'text' | 'pdf'> = {
-          'Text Notes': 'text',
-          'PDF Document': 'pdf',
-          'YouTube Video': 'text',
-          'Website Link': 'text'
+        const docTypeMap: Record<string, 'text' | 'pdf' | 'yt_video' | 'website'> = {
+          'Notes': 'text',
+          'PDF': 'pdf',
+          'YouTube Video': 'yt_video',
+          'Website Link': 'website'
         };
 
         const apiDocType = docTypeMap[newDocumentType] || 'text';
